@@ -1,4 +1,10 @@
 node_modules/
 .wrangler/
 dist/
+build/
 *.log
+__pycache__/
+*.pyc
+*.pyo
+*.spec
+tun2socks.zip
