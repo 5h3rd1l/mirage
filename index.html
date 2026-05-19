@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mirage VPN — Encrypted. Anonymous. Yours.</title>
+<meta name="description" content="A secure VPN with AES-256-GCM encryption, Tor anonymity mode, kill switch, and real-time traffic monitoring. Available on Windows and Android.">
+<meta property="og:title" content="Mirage VPN — Encrypted. Anonymous. Yours.">
+<meta property="og:description" content="AES-256-GCM encryption, Tor anonymity mode, kill switch, and real-time traffic monitoring.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #040408;
+    --bg2: #08080f;
+    --bg3: #0d0d18;
+    --accent: #00c8ff;
+    --accent2: #7b5ea7;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --border: rgba(255,255,255,0.07);
+    --card: rgba(255,255,255,0.03);
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-display: 'Syne', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* NOISE TEXTURE */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* GLOW ORBS */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb-1 { width: 600px; height: 600px; background: rgba(0,200,255,0.06); top: -200px; right: -100px; }
+  .orb-2 { width: 500px; height: 500px; background: rgba(123,94,167,0.07); bottom: 0; left: -100px; }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 3rem;
+    background: rgba(4,4,8,0.8);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .nav-logo span { color: var(--accent); }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    list-style: none;
+  }
+  .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-family: var(--font-mono);
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+
+  .nav-cta {
+    background: var(--accent);
+    color: #000 !important;
+    padding: 0.5rem 1.25rem;
+    border-radius: 6px;
+    font-weight: 700 !important;
+    transition: opacity 0.2s !important;
+  }
+  .nav-cta:hover { opacity: 0.85; color: #000 !important; }
+
+  /* SECTIONS */
+  section { position: relative; z-index: 1; }
+
+  .label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 1.5rem;
+  }
+  .label::before { content: '// '; color: var(--accent); }
+
+  /* HERO */
+  #hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 8rem 2rem 4rem;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(0,200,255,0.08);
+    border: 1px solid rgba(0,200,255,0.2);
+    border-radius: 100px;
+    padding: 0.35rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    margin-bottom: 2rem;
+  }
+  .badge-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  h1 {
+    font-size: clamp(3rem, 8vw, 6.5rem);
+    font-weight: 800;
+    line-height: 1.0;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.5rem;
+    max-width: 900px;
+  }
+  h1 em {
+    font-style: normal;
+    color: transparent;
+    -webkit-text-stroke: 1px var(--accent);
+  }
+
+  .hero-sub {
+    font-size: 1.125rem;
+    color: var(--muted);
+    max-width: 540px;
+    margin: 0 auto 3rem;
+    line-height: 1.7;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 4rem;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--accent);
+    color: #000;
+    padding: 0.875rem 2rem;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    color: var(--text);
+    padding: 0.875rem 2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    border: 1px solid var(--border);
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .btn-ghost:hover { border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
+
+  /* STATS BAR */
+  .stats-bar {
+    display: flex;
+    gap: 3rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 2rem 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    width: 100%;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  .stat-item { text-align: center; }
+  .stat-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    line-height: 1;
+  }
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    margin-top: 0.25rem;
+  }
+
+  /* TUNNEL VISUAL */
+  #tunnel {
+    padding: 8rem 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .tunnel-diagram {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    overflow-x: auto;
+    position: relative;
+  }
+  .tunnel-diagram::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(0,200,255,0.03) 0%, transparent 60%);
+    border-radius: 16px;
+    pointer-events: none;
+  }
+
+  .tunnel-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .tunnel-node {
+    background: rgba(0,200,255,0.08);
+    border: 1px solid rgba(0,200,255,0.2);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    color: var(--accent);
+    white-space: nowrap;
+    font-size: 0.75rem;
+  }
+  .tunnel-node.server {
+    background: rgba(123,94,167,0.1);
+    border-color: rgba(123,94,167,0.3);
+    color: #b48de8;
+  }
+  .tunnel-node.internet {
+    background: rgba(255,255,255,0.04);
+    border-color: var(--border);
+    color: var(--muted);
+  }
+  .tunnel-arrow {
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+  .tunnel-label {
+    font-size: 0.65rem;
+    color: var(--accent);
+    background: rgba(0,200,255,0.1);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+  }
+
+  .mode-toggle {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .mode-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .mode-btn.active {
+    background: rgba(0,200,255,0.1);
+    border-color: rgba(0,200,255,0.3);
+    color: var(--accent);
+  }
+
+  /* FEATURES */
+  #features {
+    padding: 8rem 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .section-heading {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 1rem;
+    line-height: 1.1;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-top: 4rem;
+  }
+
+  .feature-card {
+    background: var(--bg2);
+    padding: 2rem;
+    transition: background 0.2s;
+  }
+  .feature-card:hover { background: var(--bg3); }
+
+  .feature-icon {
+    width: 40px; height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,200,255,0.08);
+    border-radius: 10px;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+  }
+
+  .feature-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+  }
+
+  .feature-desc {
+    font-size: 0.875rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .feature-tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    background: rgba(0,200,255,0.08);
+    color: var(--accent);
+    border: 1px solid rgba(0,200,255,0.15);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    margin-top: 0.75rem;
+  }
+
+  /* ENCRYPTION */
+  #encryption {
+    padding: 8rem 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .packet-visual {
+    display: flex;
+    gap: 0;
+    margin: 3rem 0;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .packet-block {
+    padding: 1.25rem 1.5rem;
+    flex: 0 0 auto;
+  }
+  .packet-block.nonce {
+    background: rgba(0,200,255,0.08);
+    border-right: 1px solid var(--border);
+    color: var(--accent);
+    min-width: 140px;
+  }
+  .packet-block.cipher {
+    background: rgba(123,94,167,0.06);
+    color: #b48de8;
+    flex: 1;
+  }
+  .packet-label {
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-bottom: 0.3rem;
+  }
+  .packet-value { font-weight: 700; }
+
+  .auth-flow {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 2rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+  .auth-col {
+    background: var(--bg2);
+    padding: 1.5rem;
+  }
+  .auth-col-title {
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 1rem;
+    font-size: 0.8rem;
+  }
+  .auth-step {
+    color: var(--muted);
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.7rem;
+    line-height: 1.5;
+  }
+  .auth-step:last-child { border-bottom: none; }
+
+  /* KILL SWITCH */
+  #killswitch {
+    padding: 8rem 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .ks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-top: 3rem;
+  }
+
+  .ks-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem 1.25rem;
+    position: relative;
+  }
+
+  .ks-number {
+    font-family: var(--font-mono);
+    font-size: 2rem;
+    font-weight: 700;
+    color: rgba(0,200,255,0.2);
+    line-height: 1;
+    margin-bottom: 0.75rem;
+  }
+
+  .ks-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .ks-desc {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.5;
+    font-family: var(--font-mono);
+  }
+
+  /* DOWNLOAD */
+  #download {
+    padding: 8rem 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .download-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 3rem;
+  }
+
+  .download-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: border-color 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .download-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .download-card:hover::before { opacity: 1; }
+  .download-card:hover { border-color: rgba(0,200,255,0.2); }
+
+  .dl-platform {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .dl-name {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .dl-size {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .dl-requirements {
+    font-size: 0.8rem;
+    color: var(--muted);
+    padding: 1rem;
+    background: rgba(255,255,255,0.02);
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    line-height: 1.8;
+  }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 3rem 2rem;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    position: relative;
+    z-index: 1;
+  }
+  footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+  footer a:hover { color: var(--text); }
+
+  .footer-links {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .footer-logo {
+    font-size: 1.25rem;
+    font-weight: 800;
+    font-family: var(--font-display);
+    margin-bottom: 1rem;
+    color: var(--text);
+  }
+  .footer-logo span { color: var(--accent); }
+
+  /* SCROLL ANIMATIONS */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { display: none; }
+    h1 { font-size: 3rem; }
+    .download-grid { grid-template-columns: 1fr; }
+    .auth-flow { grid-template-columns: 1fr; }
+    .tunnel-row { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">✦ <span>mirage</span>vpn</a>
+  <ul class="nav-links">
+    <li><a href="#features">features</a></li>
+    <li><a href="#encryption">encryption</a></li>
+    <li><a href="#killswitch">kill switch</a></li>
+    <li><a href="#download">download</a></li>
+    <li><a href="https://github.com/5h3rd1l/mirage" target="_blank">github</a></li>
+    <li><a href="https://github.com/5h3rd1l/mirage/releases" class="nav-cta">↓ Download</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="badge">
+    <div class="badge-dot"></div>
+    v1.0.0 — Windows &amp; Android
+  </div>
+
+  <h1>Your traffic.<br><em>Encrypted.</em><br>Anonymous.</h1>
+
+  <p class="hero-sub">
+    AES-256-GCM encrypted tunnel with Tor anonymity mode, 5-layer kill switch, and real-time traffic monitoring. Available on Windows and Android.
+  </p>
+
+  <div class="hero-actions">
+    <a href="https://github.com/5h3rd1l/mirage/releases/latest/download/MirageVPN.exe" class="btn-primary">
+      ↓ Download for Windows
+    </a>
+    <a href="https://github.com/5h3rd1l/mirage/releases" class="btn-ghost">
+      View Releases →
+    </a>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-value">256</div>
+      <div class="stat-label">bit encryption</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">5</div>
+      <div class="stat-label">kill switch layers</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">2</div>
+      <div class="stat-label">platforms</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">0</div>
+      <div class="stat-label">logs kept</div>
+    </div>
+  </div>
+</section>
+
+<!-- TUNNEL SECTION -->
+<section id="tunnel">
+  <div class="reveal">
+    <p class="label">architecture</p>
+    <h2 class="section-heading">How your traffic<br>travels through Mirage</h2>
+  </div>
+
+  <div class="tunnel-diagram reveal" style="margin-top: 3rem;">
+    <div class="mode-toggle">
+      <button class="mode-btn active" onclick="showMode('normal')">Normal Mode</button>
+      <button class="mode-btn" onclick="showMode('tor')">High Anonymity (Tor)</button>
+    </div>
+
+    <div id="mode-normal">
+      <div class="tunnel-row">
+        <div class="tunnel-node">Your Device</div>
+        <div class="tunnel-arrow">──── <span class="tunnel-label">Wintun L3</span> ────►</div>
+        <div class="tunnel-node">10.8.0.2</div>
+        <div class="tunnel-arrow">──── <span class="tunnel-label">AES-256-GCM / UDP</span> ────►</div>
+        <div class="tunnel-node server">EC2 Stockholm<br>13.63.54.237</div>
+        <div class="tunnel-arrow">──── <span style="font-size:0.65rem;color:var(--muted)">NAT</span> ────►</div>
+        <div class="tunnel-node internet">Internet</div>
+      </div>
+      <div style="font-size:0.7rem; color:var(--muted); margin-top:1rem;">
+        <span style="color:var(--accent)">●</span> Encrypted UDP relay on :5001 &nbsp;&nbsp;
+        <span style="color:var(--accent)">●</span> TCP keepalive on :5000 &nbsp;&nbsp;
+        <span style="color:var(--accent)">●</span> IP masqueraded via iptables NAT
+      </div>
+    </div>
+
+    <div id="mode-tor" style="display:none;">
+      <div class="tunnel-row">
+        <div class="tunnel-node">Your Device</div>
+        <div class="tunnel-arrow">──── <span class="tunnel-label">AES-256-GCM</span> ────►</div>
+        <div class="tunnel-node server">EC2 Stockholm</div>
+        <div class="tunnel-arrow">──── <span class="tunnel-label">Tor (3 hops)</span> ────►</div>
+        <div class="tunnel-node" style="background:rgba(123,94,167,0.12);border-color:rgba(123,94,167,0.3);color:#b48de8">Exit Node</div>
+        <div class="tunnel-arrow">────►</div>
+        <div class="tunnel-node internet">Internet</div>
+      </div>
+      <div style="font-size:0.7rem; color:var(--muted); margin-top:1rem;">
+        <span style="color:#b48de8">●</span> TransPort 9040 redirect via iptables PREROUTING &nbsp;&nbsp;
+        <span style="color:#b48de8">●</span> DNSPort 5353 &nbsp;&nbsp;
+        <span style="color:#b48de8">●</span> Real IP hidden across 3 Tor hops
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="reveal">
+    <p class="label">features</p>
+    <h2 class="section-heading">Everything you need.<br>Nothing you don't.</h2>
+  </div>
+
+  <div class="features-grid reveal">
+    <div class="feature-card">
+      <div class="feature-icon">🔐</div>
+      <div class="feature-title">AES-256-GCM Encryption</div>
+      <div class="feature-desc">Every packet encrypted with a 256-bit key and a unique 12-byte nonce. GCM mode provides both encryption and integrity verification — no extra HMAC needed.</div>
+      <span class="feature-tag">Packet: [12B nonce][ciphertext]</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🧅</div>
+      <div class="feature-title">Tor High-Anonymity Mode</div>
+      <div class="feature-desc">Route all traffic through Tor's transparent proxy. Server applies iptables PREROUTING rules to redirect client traffic through TransPort 9040 and DNSPort 5353.</div>
+      <span class="feature-tag">3 hops · DNS leak protected</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🛡️</div>
+      <div class="feature-title">5-Layer Kill Switch</div>
+      <div class="feature-desc">If the VPN drops, all internet traffic is instantly blocked. Five independent safety nets ensure your real IP never leaks — even on crash or forced restart.</div>
+      <span class="feature-tag">netsh advfirewall · Task Scheduler</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">Live Traffic Dashboard</div>
+      <div class="feature-desc">Real-time session stats, upload/download bytes, connection history, and activity bar charts. Filter by event type and export to CSV with duration calculations.</div>
+      <span class="feature-tag">Supabase real-time queries</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">📧</div>
+      <div class="feature-title">Email OTP Verification</div>
+      <div class="feature-desc">Every account requires email verification via a 6-digit OTP (10-minute expiry). Sent via Resend with DKIM/SPF/DMARC verified domain at mirage.ninja.</div>
+      <span class="feature-tag">PBKDF2 · 100k iterations</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <div class="feature-title">Brute-Force Protection</div>
+      <div class="feature-desc">Account lockout after 5 failed login attempts with a 15-minute cooldown. Session tokens expire after 24 hours. PBKDF2-SHA256 with 100,000 iterations.</div>
+      <span class="feature-tag">5 attempts → 15min lockout</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">📱</div>
+      <div class="feature-title">Native Android App</div>
+      <div class="feature-desc">Kotlin + Material Design 3 app using Android VpnService API. No root required. Same AES-256-GCM protocol as Windows. Supports Android 8.0+.</div>
+      <span class="feature-tag">Android 8.0+ · No root</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-title">Standalone Executable</div>
+      <div class="feature-desc">Single MirageVPN.exe file (40.69 MB). No Python installation required. Lazy-loads wintun.dll at connection time so GUI launches instantly on any Windows machine.</div>
+      <span class="feature-tag">PyInstaller · 40.69 MB · Plug &amp; play</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🎨</div>
+      <div class="feature-title">Glassmorphic GUI</div>
+      <div class="feature-desc">Custom frameless PyQt5 window with Neumorphic/Glassmorphic design. Animated radar map, pulse connect button, toast notifications, and real-time connection state display.</div>
+      <span class="feature-tag">PyQt5 · Custom frameless window</span>
+    </div>
+  </div>
+</section>
+
+<!-- ENCRYPTION -->
+<section id="encryption">
+  <div class="reveal">
+    <p class="label">encryption</p>
+    <h2 class="section-heading">AES-256-GCM.<br>Every packet.</h2>
+  </div>
+
+  <p class="reveal" style="color:var(--muted); margin-top:1rem; max-width:560px;">
+    Every UDP packet relayed through the tunnel is encrypted with a fresh 12-byte nonce. GCM mode provides authenticated encryption — both confidentiality and integrity in one pass.
+  </p>
+
+  <div class="packet-visual reveal">
+    <div class="packet-block nonce">
+      <div class="packet-label">nonce (12 bytes)</div>
+      <div class="packet-value">random per packet</div>
+    </div>
+    <div class="packet-block cipher">
+      <div class="packet-label">ciphertext (AES-256-GCM encrypted payload)</div>
+      <div class="packet-value">unreadable without key · integrity verified</div>
+    </div>
+  </div>
+
+  <div class="reveal" style="margin-top: 4rem;">
+    <p class="label">authentication flow</p>
+    <div class="auth-flow">
+      <div class="auth-col">
+        <div class="auth-col-title">Client</div>
+        <div class="auth-step">POST /register →</div>
+        <div class="auth-step">POST /login →</div>
+        <div class="auth-step">← receives token</div>
+        <div class="auth-step">connect + send token →</div>
+        <div class="auth-step">tunnel established ✓</div>
+      </div>
+      <div class="auth-col">
+        <div class="auth-col-title">Cloudflare Workers</div>
+        <div class="auth-step">hash pw (PBKDF2)</div>
+        <div class="auth-step">verify hash</div>
+        <div class="auth-step">create session token</div>
+        <div class="auth-step">POST /verify</div>
+        <div class="auth-step">return {valid, user_id}</div>
+      </div>
+      <div class="auth-col">
+        <div class="auth-col-title">Supabase</div>
+        <div class="auth-step">store users table</div>
+        <div class="auth-step">store sessions table</div>
+        <div class="auth-step">24h token expiry</div>
+        <div class="auth-step">log connection event</div>
+        <div class="auth-step">real-time dashboard feed</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- KILL SWITCH -->
+<section id="killswitch">
+  <div class="reveal">
+    <p class="label">kill switch</p>
+    <h2 class="section-heading">5 safety nets.<br>Zero IP leaks.</h2>
+  </div>
+
+  <p class="reveal" style="color:var(--muted); margin-top:1rem; max-width:560px;">
+    The kill switch blocks all outbound traffic the moment the VPN drops. Five independent recovery paths ensure the firewall is always restored — even on crash, signal, or forced restart.
+  </p>
+
+  <div class="ks-grid reveal">
+    <div class="ks-item">
+      <div class="ks-number">01</div>
+      <div class="ks-title">closeEvent</div>
+      <div class="ks-desc">Restores firewall when the app window is closed via the X button.</div>
+    </div>
+    <div class="ks-item">
+      <div class="ks-number">02</div>
+      <div class="ks-title">atexit</div>
+      <div class="ks-desc">Registered handler restores on any normal Python process exit.</div>
+    </div>
+    <div class="ks-item">
+      <div class="ks-number">03</div>
+      <div class="ks-title">Startup Restore</div>
+      <div class="ks-desc">Next app launch detects dirty state and restores firewall before GUI opens.</div>
+    </div>
+    <div class="ks-item">
+      <div class="ks-number">04</div>
+      <div class="ks-title">Task Scheduler</div>
+      <div class="ks-desc">Windows Task Scheduler task runs <code style="font-size:0.65rem;color:var(--accent)">MirageFirewallRestore</code> on every system boot.</div>
+    </div>
+    <div class="ks-item">
+      <div class="ks-number">05</div>
+      <div class="ks-title">Signal Handlers</div>
+      <div class="ks-desc">SIGTERM and SIGHUP handlers catch signal-based termination and restore rules.</div>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section id="download">
+  <div class="reveal">
+    <p class="label">download</p>
+    <h2 class="section-heading">Pick your platform.<br>Connect in seconds.</h2>
+  </div>
+
+  <div class="download-grid reveal">
+    <div class="download-card">
+      <div class="dl-platform">Windows Client</div>
+      <div class="dl-name">MirageVPN.exe</div>
+      <div class="dl-size">40.69 MB · Standalone · No Python required</div>
+      <div class="dl-requirements">
+        ✓ Windows 10/11<br>
+        ✓ Admin privileges (UAC prompt)<br>
+        ✓ wintun.dll (amd64) in same folder<br>
+        ✓ Internet connection
+      </div>
+      <a href="https://github.com/5h3rd1l/mirage/releases/latest/download/MirageVPN.exe" class="btn-primary" style="width:100%; justify-content:center; margin-top:0.5rem;">
+        ↓ Download .exe
+      </a>
+    </div>
+
+    <div class="download-card">
+      <div class="dl-platform">Android Client</div>
+      <div class="dl-name">MirageVPN.apk</div>
+      <div class="dl-size">Android 8.0+ · No root required</div>
+      <div class="dl-requirements">
+        ✓ Android 8.0 (API 26)+<br>
+        ✓ Allow unknown sources<br>
+        ✓ VPN permission on connect<br>
+        ✓ Same account as Windows
+      </div>
+      <a href="https://github.com/5h3rd1l/mirage/releases/latest/download/MirageVPN.apk" class="btn-primary" style="width:100%; justify-content:center; margin-top:0.5rem; background:var(--accent2); color:#fff;">
+        ↓ Download .apk
+      </a>
+    </div>
+  </div>
+
+  <div class="reveal" style="margin-top:3rem; background:var(--bg3); border:1px solid var(--border); border-radius:12px; padding:2rem; font-family:var(--font-mono); font-size:0.8rem;">
+    <p style="color:var(--muted); margin-bottom:1rem;">// or build from source</p>
+    <p style="color:var(--accent)">$ git clone https://github.com/5h3rd1l/mirage.git</p>
+    <p style="color:var(--muted)">$ pip install PyQt5 cryptography pywin32</p>
+    <p style="color:var(--muted)">$ python client/mirage_gui.py &nbsp;&nbsp;<span style="color:rgba(255,255,255,0.2)"># Run as Administrator</span></p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">✦ <span>mirage</span>vpn</div>
+  <div class="footer-links">
+    <a href="https://github.com/5h3rd1l/mirage">GitHub</a>
+    <a href="https://github.com/5h3rd1l/mirage/releases">Releases</a>
+    <a href="https://github.com/5h3rd1l/mirage/blob/main/README.md">Docs</a>
+    <a href="#features">Features</a>
+    <a href="#download">Download</a>
+  </div>
+  <p>Made by <a href="https://github.com/5h3rd1l">5h3rd1l</a> &nbsp;·&nbsp; MIT License &nbsp;·&nbsp; Free to use &amp; modify</p>
+</footer>
+
+<script>
+  // Scroll reveal
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Mode toggle
+  function showMode(mode) {
+    document.getElementById('mode-normal').style.display = mode === 'normal' ? 'block' : 'none';
+    document.getElementById('mode-tor').style.display = mode === 'tor' ? 'block' : 'none';
+    document.querySelectorAll('.mode-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', (mode === 'normal' && i === 0) || (mode === 'tor' && i === 1));
+    });
+  }
+</script>
+</body>
+</html>
