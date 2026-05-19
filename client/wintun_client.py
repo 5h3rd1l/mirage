@@ -29,35 +29,54 @@ def decrypt(data):
     return AESGCM(KEY).decrypt(data[:12], data[12:], None)
 
 
-# ── WINTUN ──────────────────────────────────────────
-wintun = ctypes.WinDLL(os.path.join(os.path.dirname(__file__), "wintun.dll"))
+# ── WINTUN (Lazy Loaded) ────────────────────────────
+wintun = None
 
-wintun.WintunCreateAdapter.restype  = ctypes.c_void_p
-wintun.WintunCreateAdapter.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_void_p]
+def _load_wintun():
+    """Load wintun.dll lazily only when needed"""
+    global wintun
+    if wintun is not None:
+        return wintun
+    
+    try:
+        # Try to load from system PATH first
+        wintun = ctypes.WinDLL("wintun.dll")
+    except OSError:
+        try:
+            # Try local directory
+            wintun = ctypes.WinDLL(os.path.join(os.path.dirname(__file__), "assets", "bin", "wintun.dll"))
+        except OSError:
+            raise RuntimeError("wintun.dll not found. Install WinTun driver from https://www.wintun.net/")
+    
+    # Setup function signatures
+    wintun.WintunCreateAdapter.restype  = ctypes.c_void_p
+    wintun.WintunCreateAdapter.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_void_p]
 
-wintun.WintunCloseAdapter.restype  = None
-wintun.WintunCloseAdapter.argtypes = [ctypes.c_void_p]
+    wintun.WintunCloseAdapter.restype  = None
+    wintun.WintunCloseAdapter.argtypes = [ctypes.c_void_p]
 
-wintun.WintunStartSession.restype  = ctypes.c_void_p
-wintun.WintunStartSession.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+    wintun.WintunStartSession.restype  = ctypes.c_void_p
+    wintun.WintunStartSession.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
 
-wintun.WintunEndSession.restype  = None
-wintun.WintunEndSession.argtypes = [ctypes.c_void_p]
+    wintun.WintunEndSession.restype  = None
+    wintun.WintunEndSession.argtypes = [ctypes.c_void_p]
 
-wintun.WintunAllocateSendPacket.restype  = ctypes.c_void_p
-wintun.WintunAllocateSendPacket.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+    wintun.WintunAllocateSendPacket.restype  = ctypes.c_void_p
+    wintun.WintunAllocateSendPacket.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
 
-wintun.WintunSendPacket.restype  = None
-wintun.WintunSendPacket.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    wintun.WintunSendPacket.restype  = None
+    wintun.WintunSendPacket.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 
-wintun.WintunReceivePacket.restype  = ctypes.c_void_p
-wintun.WintunReceivePacket.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_ulong)]
+    wintun.WintunReceivePacket.restype  = ctypes.c_void_p
+    wintun.WintunReceivePacket.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_ulong)]
 
-wintun.WintunReleaseReceivePacket.restype  = None
-wintun.WintunReleaseReceivePacket.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    wintun.WintunReleaseReceivePacket.restype  = None
+    wintun.WintunReleaseReceivePacket.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 
-wintun.WintunGetReadWaitEvent.restype  = ctypes.c_void_p
-wintun.WintunGetReadWaitEvent.argtypes = [ctypes.c_void_p]
+    wintun.WintunGetReadWaitEvent.restype  = ctypes.c_void_p
+    wintun.WintunGetReadWaitEvent.argtypes = [ctypes.c_void_p]
+    
+    return wintun
 # ────────────────────────────────────────────────────
 
 
@@ -208,7 +227,7 @@ def set_routes(original_gw, if_index):
             capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW
         )
 
-    print(f"[+] Routes set. All traffic → Wintun → EC2 → Internet")
+    print(f"[+] Routes set. All traffic -> Wintun -> EC2 -> Internet")
 
 
 def restore_routes(original_gw):
@@ -233,11 +252,17 @@ class WintunClient:
         self.udp_sock    = None
         self.original_gw = None
         self.if_index    = None
+        self.bytes_sent  = 0
+        self.bytes_recv  = 0
+        self.on_bandwidth = None  # callback(up_mbps, down_mbps)
 
     def connect(self):
         print("=" * 60)
         print("  Mirage VPN — Connecting (UDP L3 Relay)")
         print("=" * 60)
+
+        # Load wintun DLL (lazy load)
+        _load_wintun()
 
         # Step 1 — Get default gateway BEFORE anything changes
         self.original_gw = get_default_gateway()
@@ -318,6 +343,7 @@ class WintunClient:
         threading.Thread(target=self._tun_to_udp, daemon=True).start()
         threading.Thread(target=self._udp_to_tun, daemon=True).start()
         threading.Thread(target=self._keepalive,  daemon=True).start()
+        threading.Thread(target=self._bw_loop, daemon=True).start()
 
         print("=" * 60)
         print("  [+] Mirage VPN CONNECTED!")
@@ -326,8 +352,8 @@ class WintunClient:
         return True
 
     def _tun_to_udp(self):
-        """Read packets from Wintun → encrypt → send to server."""
-        print("[*] tun→udp thread started")
+        """Read packets from Wintun -> encrypt -> send to server."""
+        print("[*] tun->udp thread started")
         wait_event = wintun.WintunGetReadWaitEvent(self.session)
         while self.running:
             try:
@@ -338,17 +364,18 @@ class WintunClient:
                     wintun.WintunReleaseReceivePacket(self.session, packet_ptr)
                     try:
                         self.udp_sock.sendto(encrypt(raw), (SERVER_IP, TUN_PORT))
+                        self.bytes_sent += len(raw)
                     except Exception as e:
                         if self.running:
-                            print(f"[-] tun→udp send error: {e}")
+                            print(f"[-] tun->udp send error: {e}")
                 else:
                     ctypes.windll.kernel32.WaitForSingleObject(wait_event, 100)
             except Exception as e:
                 time.sleep(0.01)
 
     def _udp_to_tun(self):
-        """Receive packets from server → decrypt → write to Wintun."""
-        print("[*] udp→tun thread started")
+        """Receive packets from server -> decrypt -> write to Wintun."""
+        print("[*] udp->tun thread started")
         while self.running:
             try:
                 data, _ = self.udp_sock.recvfrom(65535)
@@ -365,6 +392,7 @@ class WintunClient:
                 if buf_ptr:
                     ctypes.memmove(buf_ptr, packet, len(packet))
                     wintun.WintunSendPacket(self.session, buf_ptr)
+                    self.bytes_recv += len(packet)
             except socket.timeout:
                 continue
             except Exception as e:
@@ -387,6 +415,22 @@ class WintunClient:
                     print(f"[-] Keepalive lost: {e}")
                     self.running = False
                 break
+
+    def _bw_loop(self):
+        """Report tunnel throughput once per second."""
+        last_sent, last_recv = self.bytes_sent, self.bytes_recv
+        while self.running:
+            time.sleep(1)
+            sent = self.bytes_sent
+            recv = self.bytes_recv
+            if self.on_bandwidth:
+                up_mbps = (sent - last_sent) * 8 / 1_000_000
+                down_mbps = (recv - last_recv) * 8 / 1_000_000
+                try:
+                    self.on_bandwidth(up_mbps, down_mbps)
+                except Exception:
+                    pass
+            last_sent, last_recv = sent, recv
 
     def disconnect(self):
         print("[*] Disconnecting Mirage VPN...")
